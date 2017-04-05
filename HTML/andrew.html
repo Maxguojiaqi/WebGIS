@@ -1,0 +1,216 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>GeoTIFF Save v1.4</title>
+    <link type="text/css" rel="stylesheet" href="../ol/v3.20.1/css/ol.css"/> 
+    <link rel="stylesheet" href="../Styles/style.css" type="text/css">
+    <link rel="stylesheet" href="../Styles/andrew.css" type="text/css">
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="../ol/v3.20.1/build/ol.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+</head>
+<body> 
+    <div id="container">        
+        <div id="map" class="map">
+            <div id="status" class="status">ready</div>
+        </div>
+        <div id="infoWrap">
+            <ul class="tab">
+                <li><a href="javascript:void(0)" id="select-link" class="tablinks" onclick="openTab(event, 'Selection')">Selection</a></li>
+                <li><a href="javascript:void(0)" id="result-link" class="tablinks" onclick="openTab(event, 'Results')">Results</a></li>
+            </ul>
+            <div id="Selection" class="tabcontent selection">
+                <h3 class="header">Draw an Extent</h3>
+                <p class="description">Hold down Shift + left-click and drag the marker to define an extent. Hold Shift again to move the marker and resize your current extent, or create a brand new one. Hit Submit when finished.</p> 
+                <button type="button" id="button-submit" class="button-submit">Submit</button>
+                <div id="error"></div>
+            </div>
+            <div id="Results" class="tabcontent">
+                <h3 class="header">Extent Coords</h3>
+                <p>The coordinates of your extent are listed below in WGS84</p>
+                <form class="form" method="post">
+                    <fieldset class="fieldset">
+                        <legend class="legend">Extent Info:</legend>
+                        minx:<br>
+                        <input type="text" name="minX" id="minX" class="form-data" value=""><br>
+                        miny:<br>
+                        <input type="text" name="minY" id="minY" class="form-data" value=""><br>
+                        maxx:<br>
+                        <input type="text" name="maxX" id="maxX" class="form-data" value=""><br>
+                        maxy:<br>
+                        <input type="text" name="maxY" id="maxY" class="form-data" value=""><br>
+                    </fieldset>
+                </form>
+                <div id="coordResponse"></div>                
+                <div id="tifResponse"></div>
+                <div id="pythonResponse"></div>
+            </div>         
+        </div>
+        <button class="accordion" onclick="openAcc()">Functionality</button>
+        <div class="panel">
+            <pre>Drawing an extent then hitting submit triggers a POST request to GeoServer, returning a GeoTIFF of the extent.</pre>
+            <pre class="panel-info">Details: <br>                
+                Holding shift+left click and dragging creates an extent object on the map and in OpenLayers.
+                When submit is clicked, the extent coordinates are POSTed to php using jQuery AJAX. The coords
+                are validated, secured, transformed from Web Mercator to WGS84, saved to a local extent file,
+                then AJAXed back to the webapp and displayed.<br>
+                Simultaneously, the php script POSTs to GeoServers WCS requesting a GeoTIFF of Canada using the
+                extent coords as a cookied cutter. The response is validated, and either an error message is returned
+                and logged, or the GeoTIFF is made available through a download button.<br> 
+                A subprocess is also initiated while in the php script, launching a simple python script that
+                returns a simple string, seen on the app page.
+        </div>
+    </div>
+    <script src="../Script/templateFunctions.js"></script>
+    <script>        
+        
+        /****************************  Define Map Layers and Map  *****************************/
+               
+        
+        // Basemap layer, OSM source
+        //
+        var OSM_layer = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });  
+        
+        // Set view and zoom, set for Canada
+        //
+        var view = new ol.View({
+            center: [-10997148, 9919099],
+            zoom: 3
+        });
+        
+        // Create map, point to target div
+        //
+        var map = new ol.Map({
+            interactions: ol.interaction.defaults({doubleClickZoom: false}),
+            layers: [OSM_layer],
+            target: 'map',
+            view: view,            
+        })
+        
+              
+        /****************************  Create Extent Manipulation  *****************************/
+        
+        
+        var extent = new ol.interaction.Extent({
+            condition: ol.events.condition.platformModifierKeyOnly
+        });
+        
+        map.addInteraction(extent);
+        extent.setActive(false);
+
+        // Enable interaction by holding shift
+        this.addEventListener('keydown', function(event) {
+            if (event.keyCode == 16) {
+                extent.setActive(true);
+            }
+        });
+        
+        // Reproject the coordinate units on key release, write to variable newCoord
+        var newCoord;
+        var count = 0;
+        this.addEventListener('keyup', function(event) {
+            if (event.keyCode == 16) {
+                extent.setActive(false);                
+                var oldCode = OSM_layer.getSource().getProjection().getCode();
+                newCoord = ol.proj.transformExtent([extent.j[0], extent.j[1], extent.j[2], extent.j[3]], oldCode, 'EPSG:4326' );
+                if (count >= 1) {
+                    openSelectionTab();
+                }
+                count += 1;                
+            }
+        });      
+
+        
+        
+        
+        /*************************  Trigger PHP AJAXing with submit  **************************/
+        
+        
+
+        
+        $("#button-submit").click(function(){
+            if (newCoord == undefined){
+                $("#error").html("Nope, draw the extent again!");
+            }else{
+                $("#error").html("");
+                $("#status").html("waiting..");
+                $.post("../PHP/GeoTIFF_Save_v1.4.php", 
+                {
+                    minX: newCoord[0],
+                    minY: newCoord[1],
+                    maxX: newCoord[2],
+                    maxY: newCoord[3]               
+                })
+                .done(function(data, status){
+                    $("#status").html("done");
+                    data = jQuery.parseJSON(data);
+                    // Data validation result
+                    if (data[0]){
+                        $("#error").html(data[0]);
+                    }
+                    // Trimmed extent coordiantes
+                    if (data[1]){
+                        var extentArray = data[1];
+                        $("#minX").val(extentArray[0]);
+                        $("#minY").val(extentArray[1]); 
+                        $("#maxX").val(extentArray[2]); 
+                        $("#maxY").val(extentArray[3]); 
+                        openResultTab();
+                    }
+                    // Status on extent coordinate file save
+                    if (data[2]){
+                        $("#coordResponse").html(data[2]);
+                    }                     
+                    // Status on GeoTIFF save                    
+                    if (data[3]){
+                        if (data[3].includes("failed")){
+                            $("#tifResponse").html(data[3]);
+                        }else{
+                            $("#tifResponse").html('<a href="' + data[3] + '" class="dl-tif-button" download>Get TIFF</a>');
+                        }                        
+                    }
+                    if (data[4]){
+                        $("#pythonResponse").html(data[4]);
+                    }
+                })
+                .fail(function(xhr){
+                    console.log("Status: " + xhr.status + ", " + xhr.statusText);
+                    console.log(xhr);
+                    $("#status").html("failed");
+                    $("#error").html("Oops! Something about a <br> Status: " + xhr.status + ", " + xhr.statusText);
+                })
+            }
+        });
+
+        
+        
+    </script>    
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

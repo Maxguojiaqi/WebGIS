@@ -1,0 +1,69 @@
+/*
+
+This stylesheet corresponds to style changes specific to GeoTIFF_Save.html.
+Full application style can be found in template_base.css
+
+*/
+
+.description {
+    text-align: justify;
+    font-size: 15px;
+    padding-left: 3px;
+    padding-right: 3px;
+}
+
+.form {
+    padding-top: 13px;
+}
+
+.legend {
+    color: black;
+    font-size: 12px;
+    font-weight: bold;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
+.fieldset {
+    border: 1px solid #ccc;
+}
+
+.button-submit {
+    margin-top: 15px;    
+}
+
+.dl-tif-button {
+    text-decoration: none;    
+    padding: 8px 16px;
+    border: 2px solid #ff9933;
+    border-radius: 4px;
+    background-color: white;
+    color: black;
+    font-size: 10px;
+    font-weight: bold;
+    transition-duration: 0.4s;
+}
+
+.dl-tif-button:hover {
+    background-color: #ff8000;
+    border-color: #ff8000;
+    color: white;
+}
+
+#error {
+    margin-top: 10px;
+    color: red;
+    font-size: 12px;
+}
+
+#tifResponse, #pythonResponse {
+    margin-top: 20px;
+    color: red;
+    font-size: 12px;
+}
+
+#coordResponse {
+    margin-top: 15px;
+    font-size: 12px;
+}
+

@@ -1,0 +1,198 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Dragbox</title>
+    <link rel="stylesheet" href="../ol/v3.20.1/css/ol.css" type="text/css"> 
+    <link rel="stylesheet" href="../Styles/style.css" type="text/css"> 
+
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+
+    <script src="../ol/v3.20.1/build/ol.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+   
+</head>
+<body> 
+    <div id="container">        
+        <div id="map" class="map">
+            <div id="status" class="status">ready</div>
+        </div>
+        
+        <div id="infoWrap">
+            
+            <ul class="tab">
+              <li><a href="javascript:void(0)" id="result-link" class="tablinks" onclick="openTab(event, 'Selection')">Selection</a></li>
+              <li><a href="javascript:void(0)" id="result-link" class="tablinks" onclick="openTab(event, 'Results')">Results</a></li>
+            </ul>
+            <div id="Selection" class="tabcontent selection">
+              <h3 class="header">DragBox Selection</h3>
+              <p>1. Hold Ctrl + Left Click to draw a dragbox around your area of interest.</p>
+              <p>2. Single click anywhere on the map to check pixel value.</p>    
+            </div>
+            <div id="Results" class="tabcontent">
+              <h4 class="header">Selected Location</h4>
+                <div id="iframe-parent"></div>
+              <button id="clear" class="clear" type="button">clear image</button>    
+            <div class="data">
+                <div class="data-tag">Pixel Value:</div>
+                <div id="pixelValue" class="data-input"></div>    
+            </div>      
+            </div> 
+        </div>
+        <button class="accordion" onclick="openAcc()">Functionality</button>
+        <div class="panel">
+          <pre>Single clicking on the map fetches the pixel value for that location, and hitting CTRL+Left click and drag <br>selects an area thats returned as a PNG.</pre>
+            <pre class="panel-info">Details: <br>
+                
+                On single click, a WMS getFeatureInfo() request is sent to GeoServer, relaying the pixel value<br>
+                at that location for the Canadian Soil layer seen on the map.<br>
+                A dragbox is formed when holding CTRL + Leftclick and dragging. The bounding box extent of this<br>
+                dragbox is fetched using getGeometry().getExtent(). This is added to the bbox parameter in a url<br>
+                placed in the src attribute of an image tag. The url is a getMap request to GeoServer returning<br>
+                a PNG of the selected area.
+        </div>
+    </div>  
+    <script>        
+        
+        /****************************  Define Map Layers and Map  *****************************/
+        
+        
+        // Basemap layer, OSM source
+        //
+       var view = new ol.View({
+          //change projection to geoserver's projection
+          projection: "EPSG:4326",
+          center: [-63.1890471864689,46.3461065183288],
+                zoom: 9
+        });
+
+
+
+        // creating a openlayer base map
+        var osm_map = new ol.layer.Tile({
+          source: new ol.source.OSM()
+        });
+
+        // creating a map layer from own server
+
+        var wms_map = new ol.layer.Tile({
+              source: new ol.source.TileWMS({
+                  url: 'http://127.0.0.1:8080/geoserver/ows?',
+                  params: {'LAYERS': 'PEI:PEI_CECSOL_M_sl1_250m_ll'},  
+                  serverType: 'geoserver',   
+                  crossOrigin: 'anonymous'
+               })
+          });
+
+        var map = new ol.Map
+        ({
+          interactions: ol.interaction.defaults({doubleClickZoom: true}),
+          layers: [osm_map,wms_map],
+          target: 'map',
+          controls: ol.control.defaults
+          ({
+            attributionOptions: /** @type {olx.control.AttributionOptions} */ 
+            ({
+              collapsible: true
+            })
+          }),
+              view:view
+        })
+
+        
+        // Create Style for later
+        //
+        var myStyle = new ol.style.Style ({
+            fill: new ol.style.Fill({
+                color: 'rgba(255,100,50,.2)'
+            }),
+            stroke: new ol.style.Stroke({
+                color: 'rgba(255,100,50,1)'
+            }),
+        });
+
+
+
+        /***********************  Define pixel value capture with onClick ************************/
+        
+        
+        // Get projection and resolution to pin point click event
+        var viewProjection = view.getProjection();
+        var viewResolution = view.getResolution();
+        
+        // Set the display location for fetched pixel value
+        var container = document.getElementById('pixelValue');
+
+        // Get the click location, then AJAX a request for pixel value at that spot 
+        map.on('click', function(evt) {
+            window.url = wms_map.getSource().getGetFeatureInfoUrl(
+                evt.coordinate, 
+                viewResolution, 
+                viewProjection,
+                {'INFO_FORMAT': 'text/javascript'}
+            );           
+            if (url) {                
+                var parser = new ol.format.GeoJSON();
+                $.ajax({
+                    url: url,
+                    dataType: 'jsonp',
+                    jsonpCallback: 'parseResponse'
+                }).then(function(response) {
+                    var result = parser.readFeatures(response);
+                    container.innerHTML = result[0].T.GRAY_IN
+                    DEX;        
+                });
+            }
+            openResultTab();
+        });
+        
+        /****************  Define interaction and create iFrame with DragBox Draw  *****************/
+   
+        
+        // a DragBox interaction used to select features by drawing boxes
+        var dragBox = new ol.interaction.DragBox({
+            condition: ol.events.condition.platformModifierKeyOnly
+        });
+
+        map.addInteraction(dragBox);
+        
+        // Create new iFrame with the bounding box geometry from the dragbox selection
+        //
+        dragBox.on('boxend', function(e) {
+            var extent = dragBox.getGeometry().getExtent();//getGeometry().getExtent();          
+            var bbox = extent.toString();
+
+
+             // Note - Projection has to match bounding box extents!             
+             var url = 'http://localhost:8080/geoserver/PEI/wms?' +         
+                                'service=WMS' +
+                                '&version=1.10' +
+                                '&request=GetMap' +
+                                '&layers=PEI:PEI_CECSOL_M_sl1_250m_ll' +
+                                '&styles=' +
+                                '&bbox=' + bbox +
+                                '&width=356' +
+                                '&height=356' + 
+                                '&srs=EPSG%3A4326' +
+                                '&format=image/png';
+
+            document.getElementById('iframe-parent').innerHTML = '<image id="iframe" src="' + url + '">';
+            console.log(url);
+            console.log(bbox);
+            openResultTab();
+        });
+        
+       // Add a button onclick function to clear Iframe
+        
+        $(document).ready(function() {
+            $("#clear").click(function(){
+                $("#iframe-parent").empty();
+            });
+        });
+            
+
+    </script>
+    <script src="../Styles/template.js"></script>
+</body>
+</html>

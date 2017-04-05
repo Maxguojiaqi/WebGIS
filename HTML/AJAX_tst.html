@@ -1,0 +1,56 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>test_code_max</title>
+    <link type="text/css" rel="stylesheet" href="../ol/v3.20.1/css/ol.css" /> 
+    <link rel="stylesheet" href="../Styles/style.css" type="text/css" /> 
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="../ol/v3.20.1/build/ol.js"></script>
+   
+</head>
+
+
+
+<body>
+
+<button type="button"  onclick="load()" > Get Info </button>
+<div id ="demo">   </div>
+<div id ="demo2">   </div>
+
+</body>
+
+
+
+<script>
+
+function load(){
+var xhttp = new XMLHttpRequest();
+xhttp.onreadystatechange = function()
+{
+  if (this.readyState == 4 && this.status == 200)
+  {
+
+    var xmlDoc = this.responseXML;
+    var text ="";
+    var x = xmlDoc.getElementsByTagName("format");
+    for (i=0;i<x.length;i++)
+    {
+      text = text + x[i].childNodes[0].nodeValue+"<br>";
+
+    }
+
+    document.getElementById("demo").innerHTML = text;
+    //document.getElementById("demo2").innerHTML = this.getResponseHeader("Last_Modified");
+    document.getElementById("demo2").innerHTML= this.getAllResponseHeaders();
+  } 
+};
+
+xhttp.open("POST","../PHP/info.xml", true)
+xhttp.send();
+
+}
+
+
+
+</script>
+</html>

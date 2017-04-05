@@ -1,0 +1,295 @@
+/*
+
+Currently this CSS sheet covers every example and contains all style information 
+that will be or has been used. Basic template page layout and styling is listed first, followed by map elements like popups and iframes.
+
+In the future, it is recommended that these sheets be separated by
+functionality. 
+
+Much of the template code was inspired by W3Schools.com
+
+*/
+
+
+/****************  Applied to Template  ****************/ 
+
+#container {
+    display: inline-block;
+    text-align: middle;
+    position: relative;
+    height: 500px;
+    margin-top: 30px;
+}
+
+#myProgress {
+  width: 100%;
+  background-color: #ddd;
+}
+
+#myBar {
+  width: 10%;
+  height: 30px;
+  background-color: #4CAF50;
+  text-align: center;
+  line-height: 30px;
+  color: white;
+}
+
+
+
+.map {
+    width: 700px;
+    height: 680px;    
+    display: inline-block;
+    margin:left;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    border: 1px solid black;
+    border-right: none;
+}
+
+.status {    
+    width: 70px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    font-family: arial, sans-serif;
+    bottom: 0;
+    position: fixed;
+    background-color: #f1f1f1;
+    border-radius: 0px 10px 0px 0px;
+    border-bottom: 1px solid #ccc;
+    /*z-index: 2;*/
+}
+
+body {
+    text-align: center;
+    font-family: "Lato", sans-serif;
+    background-color: rgb(253, 253, 253);
+}
+
+#infoWrap {
+    display:inline-block;
+    text-align: middle;
+    width: 420px;
+    vertical-align: top;
+    margin-left: auto;
+    height: 690px;
+}
+
+#Selection {
+    display: block;
+}
+
+
+a {
+    background-color: lightblue;
+    margin-left:0px;
+    text-align:left;
+
+   
+
+}
+
+#lat{
+    display: inline;
+    border:3px solid black;
+    text-align:center;
+    margin-left: 0;
+}
+
+#long{
+    display: inline;
+    border:3px solid black;
+    text-align:center;
+    margin-left: 0;
+}
+
+ul.tab {
+    list-style-type: none;
+    margin: 0;
+    vertical-align: top;
+    padding: 0;
+    display: inline-block;    
+    overflow: hidden;
+    border: 0.5px solid #ccc;
+    background-color: #99CCFF;
+}
+
+ul.tab li {
+    float: left;
+    width: 205px; 
+    border: 0.5px solid black;   
+}
+
+ul.tab li a {
+    display: inline-block;
+    color: black;
+    text-align: center;
+    padding: 10px 10px;
+    text-decoration: none;
+    transition: 0.3s;
+    font-size: 20px;
+    width: 185px;
+}
+
+ul.tab li a:hover {
+    background-color: #6699FF;
+}
+
+ul.tab li a:focus, .active {
+    background-color: #0066FF;
+}
+
+.tabcontent {
+    display: none;
+    padding: 5px;
+    padding-top: 25px;
+    padding-bottom:  0px;
+    border: 1px solid black;
+    border-top: none;
+    height: 600px;
+    background-color: white;
+}
+
+button.accordion {
+    clear: left;
+    display: inline-block;
+    width: 100%;
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    padding: 18px;
+    border: none;
+    text-align: left;
+    outline: none;
+    font-size: 15px;
+    transition: 0.4s;
+}
+
+button.clear {
+    background-color: #eee;
+    color: #444;
+    cursor: pointer;
+    padding: 7px; 
+    margin-top: 5px;
+    border: none;
+    outline: none;
+    transition: 0.2s;
+}
+
+button.clear:hover {
+    background-color: #eee; 
+}
+
+button.accordion.active, button.accordion:hover {
+    background-color: #eee;
+}
+
+div.panel {
+    display: block;    
+    width: inherit;
+    padding: 0 18px;
+    background-color: white;
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out;
+    text-align: left;
+}
+
+.panel-info {
+    -moz-tab-size: 3;
+    -o-tab-size: 3;
+    tab-size: 3;
+}
+
+.header {
+    margin: 0px;
+}
+
+.data {
+    font-size: 15px;
+    margin: 10px;
+}
+
+.data-tag, .data-input {    
+    display: inline;
+    padding-top: 20px;
+}
+
+/****************  Applied to maps using iframes and popups  ****************/ 
+
+.ol-popup {
+    position: absolute;
+    background-color: white;
+    -webkit-filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+    filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+    padding: 15px;
+    border-radius: 10px;
+    border: 1px solid #cccccc;
+    bottom: 12px;
+    left: -50px;
+    min-width: 280px;
+}
+
+.ol-popup:after, .ol-popup:before {
+    top: 100%;
+    border: solid transparent;
+    content: " ";
+    height: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+}
+
+.ol-popup:after {
+    border-top-color: white;
+    border-width: 10px;
+    left: 48px;
+    margin-left: -10px;
+}
+
+.ol-popup:before {
+    border-top-color: #cccccc;
+    border-width: 11px;
+    left: 48px;
+    margin-left: -11px;
+}
+
+.ol-popup-closer {
+    text-decoration: none;
+    position: absolute;
+    top: 2px;
+    right: 8px;
+}
+
+.ol-popup-closer:after {
+    content: "close";
+}  
+
+.ol-dragbox {
+    background-color: rgba(255,255,255,0.4);
+    border-color: rgba(100,150,0,1);
+}
+
+#iframe-parent {
+    width: 400px;
+    height: 400px;
+    position: relative;
+    margin-left: 0px;
+    border: 1px solid black;
+}
+
+#iframe {
+    width: 400px;
+    height: inherit;
+    border: none;
+    padding: none;
+    margin: 0;
+}
+
+
+
+

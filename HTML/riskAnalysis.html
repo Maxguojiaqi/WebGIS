@@ -1,0 +1,391 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Canola Risk Analysis</title>
+    <link rel="stylesheet" href="../ol/v3.20.1/css/ol.css" type="text/css"> 
+    <link rel="stylesheet" href="../Styles/style2.css" type="text/css"> 
+
+    <link rel="stylesheet" type="text/css" href="../Styles/datepicker.css">
+    <script type="text/javascript" src="../SCRIPT/datepicker.js"></script> 
+
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="../ol/v3.20.1/build/ol.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+
+   
+</head>
+<body> 
+    <h1> Canola Crop Disease Risk Analysis Map Demo </h1>
+    <div id="container">        
+        <div id="map" class="map">
+        <!-- <div id="status" class="status">ready</div>  3.1.1 -->
+        </div>
+
+        
+        <div id="infoWrap">
+            
+            <ul class="tab">
+              <li><a href="javascript:void(0)" id="result-link" class="tablinks" onclick="openTab(event, 'Selection')">Selection</a></li>
+              <li><a href="javascript:void(0)" id="result-link" class="tablinks" onclick="openTab(event, 'Results')">RiskAnalysis AOI</a></li>
+            </ul>
+            <div id="Selection" class="tabcontent selection">
+              <h3 class="header">AOI Selection</h3>
+              <p> Hold Ctrl + Left Click to draw a dragbox around your area of interest.</p>
+            <form class="form-inline">
+              <label>Action type &nbsp;</label>
+                <select id="type" class="form-control">
+                  <option value="singleclick" selected>Click</option>
+                  <option value="pointermove">Hover</option>
+                </select></br>
+              <span id="status">&nbsp;0 selected features</span>
+        </form>
+        Crop Density <select id="CropDensity">
+              <option value="low">low</option>
+              <option value="normal">normal</option>
+              <option value="high">high</option>
+             </select>
+               <p>Date of Flowering: <input id="floweringDate" class='datepicker' size='11' title='D-MMM-YYYY'> </p> 
+             <br>
+
+        <div id="myProgress">
+          <div id="myBar">10%</div>
+        </div> <br>
+
+        <button onclick="move()" id="runPython">Acquire Risk Map</button> <br>
+        <div id="tifResponse1"></div>
+      <div id="button1"></div>
+      <div id="tifResponse2"></div>
+      <div id="button2"></div>
+      </div>
+            <div id="Results" class="tabcontent">
+              <h4 class="header">Selected Location</h4>
+                <div id="iframe-parent">
+                </div>   
+            <div class="data"> 
+              <br>
+              X: <input type="text" id="X"><br>
+              Y: <input type="text" id="Y"><br>
+              <button id="fly">GO!</button><br>
+              <button id="Home">Back to Original Mapview</button>
+            </div>      
+            </div> 
+        </div>
+            <form>
+            Number of years since last canola crop: <input type="text" id="numYears"><br><br>
+            Disease incidence (the number of plants out of 100 that were showing symptoms: <input type="text" id="DiseaseIncid"><br><br>
+            Weather station Code: <input type="text" id="stationCode"><br><br>
+            Last 2 weeks Rain (Unit: mm): <input type="text" id="Rain"><br><br>
+            Crop Density <select id="CropDst">
+                          <option value="low">low</option>
+                          <option value="normal">normal</option>
+                          <option value="high">high</option>
+                         </select><br><br>
+            Regional risk of apothecia development <select id="RegionRisk">
+                          <option value="none">none</option>
+                          <option value="low">low</option>
+                          <option value="high">high</option>
+                         </select>
+        
+           </form>
+          <button id="RiskAnalysis"> Risk Analysis </button>
+          <!-- <div id="pythonResponse"></div> -->
+            
+          </div>
+    <script>        
+        
+    /****************************  Define Map Layers and Map  *****************************/
+    var floweringDate = document.getElementById("floweringDate").value;
+    var floweringMonth = floweringDate.slice(-8,-5)
+    var floweringYear = floweringDate.slice(-4)
+    console.log(floweringMonth);
+    console.log(floweringYear);
+    console.log(typeof(floweringDate));
+    // Basemap layer, OSM source
+   var view = new ol.View({
+      //change projection to geoserver's projection
+      projection: "EPSG:4326",
+      center: [-98.5284468774974,50.71391708013823],
+            zoom: 7
+    });
+
+    // creating a openlayer base map
+    var osm_map = new ol.layer.Tile({
+      source: new ol.source.OSM()
+    });
+
+    // creating a map layer from own server
+
+    var region_map = new ol.layer.Vector({
+        source: new ol.source.Vector({
+          url: 'http://localhost:8080/geoserver/manitoba/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=manitoba:GeoBase_MUNI_MB_1_0_eng&maxFeatures=5000&outputFormat=application%2Fjson',
+          format: new ol.format.GeoJSON()
+        })
+      });
+
+    var map = new ol.Map
+    ({
+      interactions: ol.interaction.defaults({doubleClickZoom: true}),
+      layers: [osm_map,region_map],
+      target: 'map',
+      controls: ol.control.defaults
+      ({
+        attributionOptions: /** @type {olx.control.AttributionOptions} */ 
+        ({
+          collapsible: true
+        })
+      }),
+          view:view
+    })
+    
+    var coords;
+
+    var select = null;  // ref to currently selected interaction
+
+    // select interaction working on "singleclick"
+    var selectSingleClick = new ol.interaction.Select();
+
+    // select interaction working on "click"
+    var selectClick = new ol.interaction.Select({
+      condition: ol.events.condition.click
+    });
+
+    // select interaction working on "pointermove"
+    var selectPointerMove = new ol.interaction.Select({
+      condition: ol.events.condition.pointerMove
+    });
+
+    var selectElement = document.getElementById('type');
+
+    var changeInteraction = function() {
+      if (select !== null) {
+        map.removeInteraction(select);
+      }
+      var value = selectElement.value;
+      if (value == 'singleclick') {
+        select = selectSingleClick;
+      } else if (value == 'pointermove') {
+        select = selectPointerMove;
+      } else {
+        select = null;
+      }
+
+
+      if (select !== null) {
+        map.addInteraction(select);
+        select.on('select', function(e){
+        console.log(e);
+
+        document.getElementById('status').innerHTML = '&nbsp;' +
+              e.target.getFeatures().getLength() +
+              ' selected features (last operation selected ' + e.selected.length +
+              ' and deselected ' + e.deselected.length + ' features)';
+
+            console.log(e.selected[0].c.target.v),
+            coords = e.selected[0].c.target.v;
+            });
+          }
+        };
+
+     // function move() {
+     //      var elem = document.getElementById("myBar");   
+     //      var width = 10;
+     //      var id = setInterval(frame, 10);
+     //      function frame() {
+     //        if (width >= 100) {
+     //          clearInterval(id);
+     //        } else {
+     //          width++; 
+     //          elem.style.width = width + '%'; 
+     //          elem.innerHTML = width * 1  + '%';
+     //        }
+     //      }
+     //    }
+      // console.log(coords);
+
+        $("#runPython").click(function()
+          {
+          var floweringDate = document.getElementById("floweringDate").value;
+          console.log(floweringDate);
+          var CropDensity = document.getElementById("CropDensity").value;
+
+          $.post("../PHP/Manitoba_riskAnalysis.php", 
+          {    
+               minX: String(coords[0]),
+               minY: String(coords[1]),
+               maxX: String(coords[2]),
+               maxY: String(coords[3]),
+               CropDensity:CropDensity
+
+          })
+          .done(function(data, status)
+          {
+              $("#status").html("done");
+              data = jQuery.parseJSON(data);
+              console.log(data);
+
+              if (data[0] && data[1] )
+              {
+                $("#tifResponse1").html('<a href="' + data[0] + '" download=>Download Original Data</a>').appendTo('#button1');
+              
+                $("#tifResponse2").html('<a href="' + data[1] + '" download=>Download RiskMap</a>').appendTo('#button2');
+              }
+          })
+
+          var elem = document.getElementById("myBar");   
+          var width = 10;
+          var id = setInterval(frame, 10);
+          function frame() {
+            if (width >= 100) {
+              clearInterval(id);
+            } else {
+              width++; 
+              elem.style.width = width + '%'; 
+              elem.innerHTML = width * 1  + '%';
+            }
+          }
+
+          });
+
+    //     });
+    //   }
+    // };
+      /**
+       * onchange callback on the select element.
+       */
+      selectElement.onchange = changeInteraction;
+      changeInteraction();
+
+
+    // Create Style for later
+    //
+    var myStyle = new ol.style.Style ({
+        fill: new ol.style.Fill({
+            color: 'rgba(255,100,50,.2)'
+        }),
+        stroke: new ol.style.Stroke({
+            color: 'rgba(255,100,50,1)'
+        }),
+    });
+
+    /****************  Define interaction and create iFrame with DragBox Draw  *****************/
+
+    
+    // a DragBox interaction used to select features by drawing boxes
+    var dragBox = new ol.interaction.DragBox({
+        condition: ol.events.condition.platformModifierKeyOnly
+    });
+
+    map.addInteraction(dragBox);
+    
+    // Create new iFrame with the bounding box geometry from the dragbox selection
+    //
+    dragBox.on('boxend', function(e) {
+        var extent = dragBox.getGeometry().getExtent();//getGeometry().getExtent();          
+        var bbox = extent.toString();
+
+
+         // Note - Projection has to match bounding box extents!             
+         var url = 'http://127.0.0.1:8080/geoserver/Canada/wms?' +         
+                            'service=WMS' +
+                            '&version=1.10' +
+                            '&request=GetMap' +
+                            '&layers=Canada:canada_clay_250_sl1' +
+                            '&styles=' +
+                            '&bbox=' + bbox +
+                            '&width=700' +
+                            '&height=700' + 
+                            '&srs=EPSG%3A4326' +
+                            '&format=image/png';
+
+        document.getElementById('iframe-parent').innerHTML = '<image id="iframe" src="' + url + '">';
+        console.log(url);
+        console.log(bbox);
+        openResultTab();
+    });
+    
+
+    $("#RiskAnalysis").click(function()
+    {
+      var numYears = document.getElementById("numYears").value;
+      var DiseaseIncid = document.getElementById("DiseaseIncid").value;
+      var CropDst = document.getElementById("CropDst").value;
+      var Rain = document.getElementById("Rain").value;
+      var stationCode = document.getElementById("stationCode").value;
+      var RegionRisk = document.getElementById("RegionRisk").value;
+
+      var riskArray = [numYears,DiseaseIncid,CropDst,Rain,stationCode,RegionRisk];
+        //console.log(riskArray);
+      $.post("../PHP/riskAnalysis.php", 
+        {
+         riskArray:riskArray
+        })
+      .done(function(data, status)
+        {
+          $("#status").html("done");
+          data = jQuery.parseJSON(data);
+          console.log(data);
+          if (data)
+          { 
+            alert(data);
+            // $("#pythonResponse").html(data[0]);
+          }
+        });
+
+    });
+
+    function onClick(id, callback) {
+      document.getElementById(id).addEventListener('click', callback);
+    }
+
+    function flyTo(location, done) {
+            var duration = 3000;
+            var zoom = view.getZoom();
+            var parts = 2;
+            var called = false;
+            function callback(complete) {
+              --parts;
+              if (called) {
+                return;
+              }
+              if (parts === 0 || !complete) {
+                called = true;
+                done(complete);
+              }
+            }
+            view.animate({
+              center: location,
+              duration: duration
+            }, callback);
+            view.animate({
+              zoom: 4,
+              duration: duration / 2
+            }, {
+              zoom: 8,
+              duration: duration / 2
+            }, callback);
+          }
+
+          onClick('fly', function() {
+
+              var Xcoord = document.getElementById("X").value;
+              var Xcoord = parseInt(Xcoord);
+              var Ycoord = document.getElementById("Y").value;
+              var Ycoord = parseInt(Ycoord);
+
+            flyTo([Xcoord,Ycoord], function() {});
+          });
+
+          onClick('Home', function() {
+            view.animate({
+            center: [-101.5284468774974,47.71391708013823],
+            zoom: 4,
+            duration: 3000,
+            });
+          });
+
+
+  </script>
+    <script src="../Styles/template.js"></script>
+</body>
+</html>
